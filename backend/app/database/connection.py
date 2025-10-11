@@ -52,3 +52,43 @@ class Neo4jConnection:
                     logger.error(f"Failed to create constraint: {str(e)}")
                     logger.error(f"Constraint: {constraint}")
                     raise
+    
+    def get_session(self):
+        """Get a new Neo4j session"""
+        if not self.driver:
+            raise Exception("Driver not initialized. Call connect() first.")
+        return self.driver.session()
+    
+    def connect(self):
+        """Connect to Neo4j (for compatibility with main.py)"""
+        # Connection is already established in __init__, but verify it
+        self.validate_connection()
+
+
+# Global connection instance - will be initialized in main.py
+neo4j_conn = None
+
+
+def initialize_connection():
+    """Initialize the global Neo4j connection"""
+    global neo4j_conn
+    import os
+    from dotenv import load_dotenv
+    
+    load_dotenv()
+    
+    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    user = os.getenv("NEO4J_USER", "neo4j")
+    password = os.getenv("NEO4J_PASSWORD", "password")
+    
+    neo4j_conn = Neo4jConnection(uri=uri, user=user, password=password)
+    return neo4j_conn
+
+
+def get_db():
+    """Dependency for getting database session"""
+    session = neo4j_conn.get_session()
+    try:
+        yield session
+    finally:
+        session.close()
