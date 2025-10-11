@@ -27,13 +27,25 @@ import {
   MenuItem,
   Breadcrumbs,
   Link,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Divider,
+  IconButton,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
   Refresh as RefreshIcon,
   Info as InfoIcon,
+  Close as CloseIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
-import { fundAPI } from '../services/api';
+import { fundAPI, managementAPI } from '../services/api';
 
 const FundVisualization = () => {
   const { fundId } = useParams();
@@ -45,6 +57,10 @@ const FundVisualization = () => {
   const [error, setError] = useState(null);
   const [hierarchyDepth, setHierarchyDepth] = useState(2);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [managementModalOpen, setManagementModalOpen] = useState(false);
+  const [managementFunds, setManagementFunds] = useState([]);
+  const [loadingManagementFunds, setLoadingManagementFunds] = useState(false);
+  const [selectedMgmtEntity, setSelectedMgmtEntity] = useState(null);
 
   const fetchHierarchy = useCallback(async () => {
     setLoading(true);
@@ -101,6 +117,8 @@ const FundVisualization = () => {
                 <small>{fundResponse.data.management_entity.mgmt_id}</small>
                 <br />
                 <small>{fundResponse.data.management_entity.registration_no}</small>
+                <br />
+                <small style={{ fontSize: '9px', color: '#e0e0e0' }}>Click to view all funds</small>
               </div>
             ),
           },
@@ -111,6 +129,9 @@ const FundVisualization = () => {
             border: '2px solid #388e3c',
             borderRadius: '8px',
             width: 200,
+            cursor: 'pointer',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            transition: 'all 0.2s',
           },
         };
         newNodes.push(mgmtNode);
@@ -229,6 +250,55 @@ const FundVisualization = () => {
 
   const onNodeClick = (event, node) => {
     setSelectedNode(node);
+    
+    // If clicked on management entity node, fetch all funds managed by it
+    if (node.id.startsWith('mgmt_')) {
+      const mgmtId = node.id.replace('mgmt_', '');
+      fetchManagementFunds(mgmtId);
+    }
+  };
+
+  const fetchManagementFunds = async (mgmtId) => {
+    setLoadingManagementFunds(true);
+    setManagementModalOpen(true);
+    setSelectedMgmtEntity(mgmtId);
+    
+    try {
+      const response = await fundAPI.getFundsByManagementEntity(mgmtId, 1, 100);
+      console.log('Management funds response:', response.data);
+      
+      // Handle both array and object responses
+      let fundsData = [];
+      if (Array.isArray(response.data)) {
+        // Direct array response
+        fundsData = response.data;
+      } else if (response.data.funds) {
+        // Wrapped response with funds property
+        fundsData = response.data.funds;
+      } else if (response.data.data) {
+        // Wrapped response with data property
+        fundsData = response.data.data;
+      }
+      
+      setManagementFunds(fundsData);
+      console.log('Set management funds:', fundsData.length);
+    } catch (err) {
+      console.error('Failed to fetch management entity funds:', err);
+      setManagementFunds([]);
+    } finally {
+      setLoadingManagementFunds(false);
+    }
+  };
+
+  const handleCloseManagementModal = () => {
+    setManagementModalOpen(false);
+    setManagementFunds([]);
+    setSelectedMgmtEntity(null);
+  };
+
+  const handleViewFund = (fundId) => {
+    handleCloseManagementModal();
+    navigate(`/fund/${fundId}`);
   };
 
   const handleDepthChange = (event) => {
@@ -331,9 +401,95 @@ const FundVisualization = () => {
                                      selectedNode.id.startsWith('SC') ? 'Share Class' :
                                      selectedNode.id.startsWith('SF') ? 'SubFund' : 'Fund'}
             </Typography>
+            {selectedNode.id.startsWith('mgmt_') && (
+              <Typography variant="body2" color="primary" sx={{ mt: 1 }}>
+                Click on the management entity node to view all funds it manages
+              </Typography>
+            )}
           </CardContent>
         </Card>
       )}
+
+      {/* Management Entity Funds Modal */}
+      <Dialog
+        open={managementModalOpen}
+        onClose={handleCloseManagementModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">
+              Funds Managed by {selectedMgmtEntity}
+            </Typography>
+            <IconButton onClick={handleCloseManagementModal} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {loadingManagementFunds ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : managementFunds.length === 0 ? (
+            <Alert severity="info">No funds found for this management entity</Alert>
+          ) : (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Total funds: {managementFunds.length}
+              </Typography>
+              <List>
+                {managementFunds.map((fund, index) => (
+                  <React.Fragment key={fund.fund_id}>
+                    {index > 0 && <Divider />}
+                    <ListItem
+                      disablePadding
+                      secondaryAction={
+                        <Button
+                          size="small"
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => handleViewFund(fund.fund_id)}
+                        >
+                          View
+                        </Button>
+                      }
+                    >
+                      <ListItemButton>
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body1">{fund.fund_name}</Typography>
+                              <Chip
+                                label={fund.status}
+                                size="small"
+                                color={fund.status === 'ACTIVE' ? 'success' : 'default'}
+                              />
+                            </Box>
+                          }
+                          secondary={
+                            <Box>
+                              <Typography variant="body2" color="text.secondary">
+                                {fund.fund_code} | {fund.fund_type}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Currency: {fund.base_currency} | Domicile: {fund.domicile}
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  </React.Fragment>
+                ))}
+              </List>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseManagementModal}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
