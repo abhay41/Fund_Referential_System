@@ -15,7 +15,10 @@ async def search_share_classes(
     page_size: int = Query(10, ge=1, le=100),
     db = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Search share classes with filters"""
+    """
+    Searches share classes using multiple optional filters with pagination support.
+    Returns share classes with associated fund and subfund information based on filter criteria.
+    """
     
     where_clauses = []
     params = {}
@@ -94,7 +97,10 @@ async def list_share_classes(
     limit: int = 10,
     db = Depends(get_db)
 ) -> List[Dict[str, Any]]:
-    """List all share classes"""
+    """
+    Retrieves all share classes with basic pagination using skip and limit parameters.
+    Returns list of share classes with their associated fund and subfund relationships.
+    """
     query = """
     MATCH (sc:ShareClass)
     OPTIONAL MATCH (f:Fund)-[:HAS_SHARE_CLASS]->(sc)
@@ -118,7 +124,10 @@ async def list_share_classes(
 
 @router.get("/{sc_id}")
 async def get_share_class(sc_id: str, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get share class by ID with full details"""
+    """
+    Retrieves a specific share class by ID with complete relationship data.
+    Returns share class with fund, subfund, and management entity information or raises 404 if not found.
+    """
     query = """
     MATCH (sc:ShareClass {sc_id: $sc_id})
     OPTIONAL MATCH (f:Fund)-[:HAS_SHARE_CLASS]->(sc)

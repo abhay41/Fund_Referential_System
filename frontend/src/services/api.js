@@ -178,4 +178,22 @@ export const legalEntityAPI = {
   },
 };
 
+// Statistics API endpoints
+export const statisticsAPI = {
+  // Get fund statistics
+  getFundStatistics: () => {
+    return api.get('/statistics/funds');
+  },
+
+  // Get management entity statistics
+  getManagementStatistics: () => {
+    return api.get('/statistics/management');
+  },
+
+  // Get all dashboard statistics (combined)
+  getDashboardStatistics: () => {
+    return api.get('/statistics/dashboard');
+  },
+};
+
 export default api;

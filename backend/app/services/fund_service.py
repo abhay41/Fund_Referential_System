@@ -13,7 +13,10 @@ class FundService:
     
     @staticmethod
     def get_fund_by_code(session: Session, fund_code: str) -> Optional[Dict[str, Any]]:
-        """Point lookup of a fund based on fund code"""
+        """
+        Retrieves a single fund by its unique fund code along with all related entities.
+        Returns fund with management entity, legal entity, share classes, and subfunds or None if not found.
+        """
         query = """
         MATCH (f:Fund {fund_code: $fund_code})
         OPTIONAL MATCH (f)-[:MANAGED_BY]->(m:ManagementEntity)-[:HAS_LEGAL_ENTITY]->(mle:LegalEntity)
@@ -43,7 +46,10 @@ class FundService:
     
     @staticmethod
     def get_fund_by_id(session: Session, fund_id: str) -> Optional[Dict[str, Any]]:
-        """Point lookup of a fund based on fund ID"""
+        """
+        Retrieves a single fund by its unique fund ID with complete relationship data.
+        Returns fund with management entity, legal entity, share classes, and subfunds or None if not found.
+        """
         query = """
         MATCH (f:Fund {fund_id: $fund_id})
         OPTIONAL MATCH (f)-[:MANAGED_BY]->(m:ManagementEntity)-[:HAS_LEGAL_ENTITY]->(mle:LegalEntity)
@@ -73,7 +79,10 @@ class FundService:
     
     @staticmethod
     def get_fund_hierarchy_children(session: Session, fund_id: str, depth: int = 1) -> Dict[str, Any]:
-        """Retrieve the n+1 children hierarchy of a fund"""
+        """
+        Retrieves fund hierarchy showing all child subfunds up to a specified depth level.
+        Returns root fund, list of children with depth information, and share classes.
+        """
         query = """
         MATCH (f:Fund {fund_id: $fund_id})
         OPTIONAL MATCH path = (f)<-[:PARENT_FUND*1..""" + str(depth) + """..depth]-(sf:SubFund)
@@ -111,7 +120,10 @@ class FundService:
     
     @staticmethod
     def get_fund_hierarchy_parents(session: Session, identifier: str, depth: int = 1) -> Dict[str, Any]:
-        """Retrieve the n-1 parent hierarchy of a fund/subfund"""
+        """
+        Retrieves the parent hierarchy chain for a fund or subfund up to specified depth.
+        Returns root node, node type (Fund/SubFund), and list of parent funds with depth information.
+        """
         # First check if it's a subfund or fund
         query = """
         MATCH (sf:SubFund {subfund_id: $identifier})
@@ -149,7 +161,10 @@ class FundService:
     
     @staticmethod
     def get_funds_by_management_entity(session: Session, mgmt_id: str, page: int = 1, page_size: int = 10) -> Dict[str, Any]:
-        """Find all funds which have the same management entity"""
+        """
+        Retrieves all funds managed by a specific management entity with pagination support.
+        Returns paginated list of funds with management entity and legal entity details.
+        """
         skip = (page - 1) * page_size
         
         # Get total count
@@ -191,7 +206,10 @@ class FundService:
     
     @staticmethod
     def search_funds(session: Session, search_params: Dict[str, Any]) -> Dict[str, Any]:
-        """Search funds with various filters"""
+        """
+        Searches funds using multiple filter criteria with pagination and sorting.
+        Supports filters: fund_code, fund_id, isin, fund_type, status, mgmt_id and returns paginated results.
+        """
         page = search_params.get('page', 1)
         page_size = search_params.get('page_size', 10)
         skip = (page - 1) * page_size
@@ -266,7 +284,10 @@ class FundService:
     
     @staticmethod
     def create_fund(session: Session, fund_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new fund"""
+        """
+        Creates a new fund with auto-generated fund_id and establishes relationships to management and legal entities.
+        Returns the newly created fund node or None if creation fails.
+        """
         # Generate fund_id
         query = """
         MATCH (f:Fund)
@@ -317,7 +338,10 @@ class FundService:
     
     @staticmethod
     def update_fund(session: Session, fund_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update fund properties"""
+        """
+        Updates specified properties of an existing fund identified by fund_id.
+        Returns the updated fund node or None if fund not found or no valid updates provided.
+        """
         set_clauses = []
         params = {'fund_id': fund_id}
         

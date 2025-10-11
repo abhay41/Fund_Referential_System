@@ -8,7 +8,7 @@ import logging
 
 from app.config import get_settings
 from app.database.connection import initialize_connection
-from app.api.routes import funds, management, subfunds, share_classes, legal_entities
+from app.api.routes import funds, management, subfunds, share_classes, legal_entities, statistics
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ app.include_router(management.router)
 app.include_router(subfunds.router)
 app.include_router(share_classes.router)
 app.include_router(legal_entities.router)
+app.include_router(statistics.router)
 
 
 @app.get("/")

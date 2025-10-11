@@ -22,9 +22,10 @@ import {
   Assessment as AssessmentIcon,
   Search as SearchIcon,
   Add as AddIcon,
+  Business as ManagementIcon,
 } from '@mui/icons-material';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { fundAPI } from '../services/api';
+import { fundAPI, statisticsAPI } from '../services/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalFunds: 0,
+    totalManagementEntities: 0,
     activeFunds: 0,
     inactiveFunds: 0,
     fundsByType: [],
@@ -47,38 +49,21 @@ const Dashboard = () => {
     setError(null);
 
     try {
-      // Fetch all funds with pagination
-      const fundsResponse = await fundAPI.searchFunds({}, 1, 100);
-      const funds = fundsResponse.data.funds || [];
-
-      // Calculate statistics
-      const totalFunds = funds.length;
-      const activeFunds = funds.filter(f => f.status === 'ACTIVE').length;
-      const inactiveFunds = funds.filter(f => f.status !== 'ACTIVE').length;
-
-      // Group by fund type
-      const typeGroups = {};
-      funds.forEach(fund => {
-        if (!typeGroups[fund.fund_type]) {
-          typeGroups[fund.fund_type] = 0;
-        }
-        typeGroups[fund.fund_type]++;
-      });
-
-      const fundsByType = Object.keys(typeGroups).map(type => ({
-        name: type,
-        value: typeGroups[type],
-      }));
-
-      // Get recent funds (last 5)
-      const recentFunds = funds.slice(0, 5);
+      // Use the new combined statistics API
+      const statsResponse = await statisticsAPI.getDashboardStatistics();
+      const data = statsResponse.data;
+      
+      // Fetch recent funds separately
+      const fundsResponse = await fundAPI.searchFunds({}, 1, 5);
+      const recentFunds = fundsResponse.data.funds || [];
 
       setStats({
-        totalFunds,
-        activeFunds,
-        inactiveFunds,
-        fundsByType,
-        recentFunds,
+        totalFunds: data.total_funds || 0,
+        totalManagementEntities: data.total_management_entities || 0,
+        activeFunds: data.active_funds || 0,
+        inactiveFunds: data.inactive_funds || 0,
+        fundsByType: data.funds_by_type || [],
+        recentFunds: recentFunds,
       });
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to fetch dashboard data');
@@ -150,7 +135,7 @@ const Dashboard = () => {
 
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card elevation={3}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -168,7 +153,25 @@ const Dashboard = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card elevation={3}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <ManagementIcon sx={{ fontSize: 40, color: '#9c27b0', mr: 2 }} />
+                <Box>
+                  <Typography color="text.secondary" variant="body2">
+                    Management Entities
+                  </Typography>
+                  <Typography variant="h4">
+                    {stats.totalManagementEntities}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
           <Card elevation={3}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -186,7 +189,7 @@ const Dashboard = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card elevation={3}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>

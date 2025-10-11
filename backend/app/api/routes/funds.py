@@ -16,7 +16,10 @@ async def search_funds(
     page_size: int = Query(10, ge=1, le=100),
     db = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Search funds with filters"""
+    """
+    Searches funds using multiple optional filters with pagination support.
+    Supports partial matching on fund_code and isin, exact matching on other fields.
+    """
     
     where_clauses = []
     params = {}
@@ -91,7 +94,10 @@ async def search_funds(
 
 @router.get("/")
 async def list_funds(skip: int = 0, limit: int = 10, db = Depends(get_db)) -> List[Dict[str, Any]]:
-    """List all funds"""
+    """
+    Retrieves all funds with basic pagination using skip and limit parameters.
+    Returns list of funds with their associated management entities.
+    """
     query = """
     MATCH (f:Fund)
     OPTIONAL MATCH (f)-[:MANAGED_BY]->(m:ManagementEntity)
@@ -113,7 +119,10 @@ async def list_funds(skip: int = 0, limit: int = 10, db = Depends(get_db)) -> Li
 
 @router.get("/code/{fund_code}")
 async def get_fund_by_code(fund_code: str, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get fund by fund code"""
+    """
+    Retrieves a specific fund by its unique fund code with complete related data.
+    Returns fund with management entity, legal entity, share classes, and subfunds.
+    """
     query = """
     MATCH (f:Fund {fund_code: $fund_code})
     OPTIONAL MATCH (f)-[:MANAGED_BY]->(m:ManagementEntity)
@@ -137,9 +146,69 @@ async def get_fund_by_code(fund_code: str, db = Depends(get_db)) -> Dict[str, An
     
     return fund
 
+@router.get("/statistics")
+async def get_fund_statistics(db = Depends(get_db)) -> Dict[str, Any]:
+    """
+    Retrieves comprehensive fund statistics including total counts, status breakdown, and type distribution.
+    Returns aggregated data for dashboard display without pagination.
+    """
+    
+    # Get total fund count
+    total_query = """
+    MATCH (f:Fund)
+    RETURN count(f) as total
+    """
+    total_result = db.run(total_query)
+    total_funds = total_result.single()['total']
+    
+    # Get counts by status
+    status_query = """
+    MATCH (f:Fund)
+    RETURN f.status as status, count(f) as count
+    """
+    status_result = db.run(status_query)
+    status_counts = {}
+    active_funds = 0
+    inactive_funds = 0
+    
+    for record in status_result:
+        status = record['status']
+        count = record['count']
+        status_counts[status] = count
+        if status == 'ACTIVE':
+            active_funds = count
+        else:
+            inactive_funds += count
+    
+    # Get counts by fund type
+    type_query = """
+    MATCH (f:Fund)
+    RETURN f.fund_type as fund_type, count(f) as count
+    ORDER BY count DESC
+    """
+    type_result = db.run(type_query)
+    funds_by_type = []
+    
+    for record in type_result:
+        funds_by_type.append({
+            'name': record['fund_type'],
+            'value': record['count']
+        })
+    
+    return {
+        'total_funds': total_funds,
+        'active_funds': active_funds,
+        'inactive_funds': inactive_funds,
+        'status_breakdown': status_counts,
+        'funds_by_type': funds_by_type
+    }
+
 @router.get("/{fund_id}/hierarchy/children")
 async def get_fund_hierarchy_children(fund_id: str, depth: int = 1, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get fund hierarchy - children (subfunds)"""
+    """
+    Retrieves hierarchical tree of child subfunds for a fund up to specified depth.
+    Returns root fund, list of children with depth levels, and share classes.
+    """
     query = f"""
     MATCH (f:Fund {{fund_id: $fund_id}})
     OPTIONAL MATCH path = (f)<-[:PARENT_FUND*1..{depth}]-(sf:SubFund)
@@ -176,7 +245,10 @@ async def get_fund_hierarchy_children(fund_id: str, depth: int = 1, db = Depends
 
 @router.get("/{fund_id}")
 async def get_fund(fund_id: str, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get fund by ID"""
+    """
+    Retrieves a specific fund by its unique fund ID with all relationships.
+    Returns fund with management entity, legal entity, share classes, and subfunds.
+    """
     query = """
     MATCH (f:Fund {fund_id: $fund_id})
     OPTIONAL MATCH (f)-[:MANAGED_BY]->(m:ManagementEntity)

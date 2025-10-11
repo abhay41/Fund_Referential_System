@@ -13,7 +13,10 @@ async def search_subfunds(
     page_size: int = Query(10, ge=1, le=100),
     db = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Search subfunds with filters"""
+    """
+    Searches subfunds using optional filters for subfund_id, currency, and parent fund_id with pagination.
+    Supports partial matching on subfund_id and returns subfunds with parent fund information.
+    """
     
     where_clauses = []
     params = {}
@@ -81,7 +84,10 @@ async def list_subfunds(
     limit: int = 10,
     db = Depends(get_db)
 ) -> List[Dict[str, Any]]:
-    """List all subfunds"""
+    """
+    Retrieves all subfunds with basic pagination using skip and limit parameters.
+    Returns list of subfunds with their parent fund information.
+    """
     query = """
     MATCH (sf:SubFund)
     OPTIONAL MATCH (sf)-[:PARENT_FUND]->(f:Fund)
@@ -103,7 +109,10 @@ async def list_subfunds(
 
 @router.get("/{subfund_id}")
 async def get_subfund(subfund_id: str, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get subfund by ID with full details"""
+    """
+    Retrieves a specific subfund by ID with complete related data including parent fund, management entity, and share classes.
+    Returns subfund with all relationships or raises 404 if not found.
+    """
     query = """
     MATCH (sf:SubFund {subfund_id: $subfund_id})
     OPTIONAL MATCH (sf)-[:PARENT_FUND]->(f:Fund)
@@ -127,7 +136,10 @@ async def get_subfund(subfund_id: str, db = Depends(get_db)) -> Dict[str, Any]:
 
 @router.get("/{subfund_id}/children")
 async def get_subfund_children(subfund_id: str, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get child subfunds"""
+    """
+    Retrieves direct child subfunds for a given subfund.
+    Returns the parent subfund and list of its immediate children.
+    """
     query = """
     MATCH (sf:SubFund {subfund_id: $subfund_id})
     OPTIONAL MATCH (child:SubFund)-[:PARENT_FUND]->(sf)
@@ -150,7 +162,10 @@ async def get_subfund_children(subfund_id: str, db = Depends(get_db)) -> Dict[st
 
 @router.get("/{subfund_id}/hierarchy")
 async def get_subfund_full_hierarchy(subfund_id: str, depth: int = 3, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get complete subfund hierarchy (parents and children)"""
+    """
+    Retrieves complete hierarchical view showing both parent chain and children tree up to specified depth.
+    Returns subfund with ancestor nodes (going up to parent fund) and descendant subfunds with depth information.
+    """
     query = f"""
     MATCH (sf:SubFund {{subfund_id: $subfund_id}})
     

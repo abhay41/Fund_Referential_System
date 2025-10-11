@@ -15,7 +15,10 @@ async def search_management_entities(
     page_size: int = Query(10, ge=1, le=100),
     db = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Search management entities with filters"""
+    """
+    Searches management entities using multiple optional filters with pagination support.
+    Supports partial matching on mgmt_id and registration_no, returns entities with legal entity information.
+    """
     
     where_clauses = []
     params = {}
@@ -90,7 +93,10 @@ async def list_management_entities(
     limit: int = 10,
     db = Depends(get_db)
 ) -> List[Dict[str, Any]]:
-    """List all management entities"""
+    """
+    Retrieves all management entities with basic pagination using skip and limit parameters.
+    Returns list of management entities with their associated legal entity information.
+    """
     query = """
     MATCH (m:ManagementEntity)
     OPTIONAL MATCH (m)-[:HAS_LEGAL_ENTITY]->(le:LegalEntity)
@@ -112,7 +118,10 @@ async def list_management_entities(
 
 @router.get("/{mgmt_id}")
 async def get_management_entity(mgmt_id: str, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get management entity by ID"""
+    """
+    Retrieves a specific management entity by ID with complete relationship data.
+    Returns management entity with legal entity and all managed funds or raises 404 if not found.
+    """
     query = """
     MATCH (m:ManagementEntity {mgmt_id: $mgmt_id})
     OPTIONAL MATCH (m)-[:HAS_LEGAL_ENTITY]->(le:LegalEntity)
@@ -139,7 +148,10 @@ async def get_management_entity_funds(
     page_size: int = Query(10, ge=1, le=100),
     db = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Get all funds managed by a specific management entity"""
+    """
+    Retrieves all funds managed by a specific management entity with pagination.
+    Returns paginated list of funds sorted by fund_id with total count and page information.
+    """
     
     # Calculate skip
     skip = (page - 1) * page_size
