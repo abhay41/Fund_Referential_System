@@ -1,35 +1,49 @@
-version: '3'
 services:
+  # 1. Neo4j Database Service (Starts First - No Dependencies)
   neo4j:
-    image: neo4j:5.12.0
+    container_name: neo4j_db
+    image: neo4j:5.12-community
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "7687:7687"
+      - "7474:7474"
     environment:
-      - NEO4J_AUTH=neo4j/hackathon2023
-      - NEO4J_apoc_export_file_enabled=true
-      - NEO4J_apoc_import_file_enabled=true
-      - NEO4J_apoc_import_file_use__neo4j__config=true
+      NEO4J_AUTH: neo4j/hackathon2023
+      NEO4J_dbms_default__database: neo4j
     volumes:
-      - ./neo4j/data:/data
-      - ./neo4j/logs:/logs
-      - ./neo4j/import:/import
-      - ./neo4j/plugins:/plugins
+      - neo4j_data:/data 
+      - ./backend/UC6_input_datasetd6889de:/var/lib/neo4j/import
 
+  # 2. Backend Service (Starts Second - Depends on Neo4j)
   backend:
-    build: ./backend
+    container_name: bnp_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=hackathon2023
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: hackathon2023
+    # This is the key line ensuring Neo4j starts before the Backend container even launches
     depends_on:
-      - neo4j
+      - neo4j 
+    # The CMD in the Dockerfile further uses 'wait-for-neo4j.sh' to wait for the database 
+    # *port* to be open before running ingestion and starting the API.
 
+  # 3. Frontend Service (Starts Last - Depends on Backend)
   frontend:
-    build: ./frontend
+    container_name: bnp_frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8000
+    # This ensures the API service is running before the Frontend attempts to access it
     depends_on:
       - backend
+
+volumes:
+  neo4j_data:
